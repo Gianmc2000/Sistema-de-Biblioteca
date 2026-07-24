@@ -1,0 +1,306 @@
+{
+  "info": {
+    "_postman_id": "5b297c29-724c-4b13-84ce-518a0de35408",
+    "name": "Sistema Biblioteca",
+    "description": "Colección completa con todos los endpoints para libros-service (8081), prestamos-service (8082) y notificaciones-service (8083).",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "36001423"
+  },
+  "item": [
+    {
+      "name": "1. LIBROS SERVICE (8081)",
+      "item": [
+        {
+          "name": "Registrar Ejemplar",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"codigoEjemplar\": \"LIB-001\",\n  \"titulo\": \"Cien Años de Soledad\",\n  \"autor\": \"Gabriel García Márquez\",\n  \"isbn\": \"978-0307474728\",\n  \"anoPublicacion\": 1967,\n  \"disponible\": true\n}"
+            },
+            "url": {
+              "raw": "http://localhost:8081/api/v1/libros",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "8081",
+              "path": [
+                "api",
+                "v1",
+                "libros"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Listar Ejemplares",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8081/api/v1/libros",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "8081",
+              "path": [
+                "api",
+                "v1",
+                "libros"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Buscar Ejemplar por ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8081/api/v1/libros/1",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "8081",
+              "path": [
+                "api",
+                "v1",
+                "libros",
+                "1"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Registrar Socio",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"numeroDocumento\": \"76543210\",\n  \"nombre\": \"Nicole\",\n  \"apellido\": \"Mascco\",\n  \"email\": \"nicole.mascco@gmail.com\",\n  \"activo\": true\n}"
+            },
+            "url": {
+              "raw": "http://localhost:8081/api/v1/socios",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "8081",
+              "path": [
+                "api",
+                "v1",
+                "socios"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Consultar Socio por ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8081/api/v1/socios/1",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "8081",
+              "path": [
+                "api",
+                "v1",
+                "socios",
+                "1"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Actualizar Disponibilidad",
+          "request": {
+            "method": "GET",
+            "header": []
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "2. PRESTAMOS SERVICE (8082)",
+      "item": [
+        {
+          "name": "Registrar Préstamo (Orquestador)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"libroId\": 1,\n  \"socioId\": 1,\n  \"fechaPrestamo\": \"2026-07-22\"\n}"
+            },
+            "url": {
+              "raw": "http://localhost:8082/api/v1/prestamos",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "8082",
+              "path": [
+                "api",
+                "v1",
+                "prestamos"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Listar Préstamos",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8082/api/v1/prestamos",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "8082",
+              "path": [
+                "api",
+                "v1",
+                "prestamos"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Buscar Préstamo por ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8082/api/v1/prestamos/1",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "8082",
+              "path": [
+                "api",
+                "v1",
+                "prestamos",
+                "1"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Registrar Devolución",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8082/api/v1/prestamos/1/devolucion",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "8082",
+              "path": [
+                "api",
+                "v1",
+                "prestamos",
+                "1",
+                "devolucion"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "3. NOTIFICACIONES SERVICE (8083)",
+      "item": [
+        {
+          "name": "Enviar Notificación Directa",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"socioId\": 1,\n  \"mensaje\": \"Estimado socio, se ha registrado exitosamente su préstamo del ejemplar ID 1.\"\n}"
+            },
+            "url": {
+              "raw": "http://localhost:8083/api/v1/notificaciones",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "8083",
+              "path": [
+                "api",
+                "v1",
+                "notificaciones"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Listar Historial de Notificaciones",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8083/api/v1/notificaciones",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "8083",
+              "path": [
+                "api",
+                "v1",
+                "notificaciones"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}

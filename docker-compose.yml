@@ -1,0 +1,46 @@
+version: '3.8'
+
+services:
+  libros-db:
+    image: postgres:16-alpine
+    container_name: libros-db
+    environment:
+      POSTGRES_DB: librosdb
+      POSTGRES_USER: libros
+      POSTGRES_PASSWORD: libros123
+    ports:
+      - "5432:5432"
+    volumes:
+      - libros_data:/var/lib/postgresql/data
+    restart: always
+
+  prestamos-db:
+    image: postgres:16-alpine
+    container_name: prestamos-db
+    environment:
+      POSTGRES_DB: prestamosdb
+      POSTGRES_USER: prestamos
+      POSTGRES_PASSWORD: prestamos123
+    ports:
+      - "5433:5432"
+    volumes:
+      - prestamos_data:/var/lib/postgresql/data
+    restart: always
+
+  notif-db:
+    image: postgres:16-alpine
+    container_name: notif-db
+    environment:
+      POSTGRES_DB: notificacionesdb
+      POSTGRES_USER: notif
+      POSTGRES_PASSWORD: notif123
+    ports:
+      - "5434:5432"
+    volumes:
+      - notif_data:/var/lib/postgresql/data
+    restart: always
+
+volumes:
+  libros_data:
+  prestamos_data:
+  notif_data:
