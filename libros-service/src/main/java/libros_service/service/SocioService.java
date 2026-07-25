@@ -8,7 +8,7 @@ import libros_service.dto.request.ActualizarSocioRequest;
 import libros_service.dto.request.CrearSocioRequest;
 import libros_service.dto.response.SocioResponse;
 
-@Service
+
 public interface SocioService {
 
     SocioResponse registrar(CrearSocioRequest request);

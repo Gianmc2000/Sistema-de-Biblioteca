@@ -4,6 +4,7 @@ import jakarta.validation.Valid;
 import libros_service.dto.request.ActualizarSocioRequest;
 import libros_service.dto.request.CrearSocioRequest;
 import libros_service.dto.response.ApiResponse;
+import libros_service.dto.response.EjemplarResponse;
 import libros_service.dto.response.SocioResponse;
 import libros_service.service.SocioService;
 import lombok.RequiredArgsConstructor;
@@ -22,16 +23,32 @@ public class SocioController {
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    public SocioResponse registrar(@Valid @RequestBody CrearSocioRequest request){
+    public ResponseEntity<ApiResponse<SocioResponse>> registrar(@Valid @RequestBody CrearSocioRequest request){
 
-        return service.registrar(request);
+        SocioResponse response= service.registrar(request);
+
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(
+                        ApiResponse.<SocioResponse>builder()
+                                .codigo(HttpStatus.CREATED.value())
+                                .mensaje("Ejemplar registrado correctamente.")
+                                .data(response)
+                                .build()
+                );
 
     }
 
     @GetMapping
-    public List<SocioResponse> listar(){
+    public ResponseEntity<ApiResponse<List<SocioResponse>>> listar(){
 
-        return service.listar();
+        List<SocioResponse> response= service.listar();
+
+        return ResponseEntity.ok(
+                ApiResponse.<List<SocioResponse>>builder()
+                        .codigo(HttpStatus.OK.value())
+                        .mensaje("Listado de ejemplares.")
+                        .data(response)
+                        .build());
 
     }
 
@@ -51,17 +68,29 @@ public class SocioController {
     }
 
     @PutMapping("/{codigoSocio}")
-    public SocioResponse actualizar(@PathVariable String codigoSocio,@Valid @RequestBody ActualizarSocioRequest request){
+    public ResponseEntity<ApiResponse<SocioResponse>> actualizar(@PathVariable String codigoSocio,@Valid @RequestBody ActualizarSocioRequest request){
 
-        return service.actualizar(codigoSocio,request);
+        SocioResponse response = service.actualizar(codigoSocio,request);
+        return ResponseEntity.ok(
+                ApiResponse.<SocioResponse>builder()
+                        .codigo(HttpStatus.OK.value())
+                        .mensaje("Ejemplar actualizado correctamente.")
+                        .data(response)
+                        .build());
 
     }
 
     @DeleteMapping("/{codigoSocio}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void eliminar(@PathVariable String codigoSocio){
+    public ResponseEntity<ApiResponse<Void>> eliminar(@PathVariable String codigoSocio){
 
         service.eliminar(codigoSocio);
+        return ResponseEntity.ok(
+                ApiResponse.<Void>builder()
+                        .codigo(HttpStatus.OK.value())
+                        .mensaje("Socio Eliminado")
+                        .data(null)
+                        .build());
 
     }
 

@@ -1,29 +1,43 @@
 package prestamos_service.service.impl;
 
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.Mockito.*;
-import java.util.Optional;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
+import org.mockito.MockitoAnnotations;
+import org.springframework.web.client.HttpClientErrorException;
+import prestamos_service.builder.ComprobanteBuilder;
 import prestamos_service.client.LibrosClient;
+import prestamos_service.client.NotificacionesClient;
+import prestamos_service.dto.request.NotificacionRequest;
 import prestamos_service.dto.request.RegistrarDevolucionRequest;
-import prestamos_service.dto.response.PrestamoResponse;
+import prestamos_service.dto.request.RegistrarPrestamoRequest;
+import prestamos_service.dto.response.*;
 import prestamos_service.entity.Prestamo;
 import prestamos_service.factory.PrestamoFactory;
 import prestamos_service.factory.PrestamoProcessor;
 import prestamos_service.mapper.PrestamoMapper;
 import prestamos_service.respository.PrestamoRepository;
+import java.util.List;
+import java.util.Optional;
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.Mockito.*;
 
-
-@ExtendWith(MockitoExtension.class)
 class PrestamoServiceImplTest {
 
 
     @Mock
     private PrestamoRepository repository;
+
+    @Mock
+    private PrestamoMapper mapper;
+
+    @Mock
+    private LibrosClient librosClient;
+
+    @Mock
+    private NotificacionesClient notificacionesClient;
 
     @Mock
     private PrestamoFactory prestamoFactory;
@@ -32,218 +46,662 @@ class PrestamoServiceImplTest {
     private PrestamoProcessor processor;
 
     @Mock
-    private LibrosClient librosClient;
-
-    @Mock
-    private PrestamoMapper mapper;
-
+    private ComprobanteBuilder comprobanteBuilder;
 
     @InjectMocks
-    private PrestamoServiceImpl service;
+    private PrestamoServiceImpl prestamoServiceImpl;
 
+    private RegistrarPrestamoRequest request;
+    private Prestamo prestamo;
 
+    @BeforeEach
+    void setUp(){
+
+        MockitoAnnotations.openMocks(this);
+
+        prestamo = new Prestamo();
+        prestamo.setCodigoPrestamo("PRE001");
+        prestamo.setCodigoEjemplar("LIB001");
+        prestamo.setCodigoSocio("SOC001");
+
+        request = new RegistrarPrestamoRequest();
+        request.setCodigoPrestamo("PRE001");
+        request.setCodigoEjemplar("LIB001");
+        request.setCodigoSocio("SOC001");
+
+    }
 
     @Test
-    void registrarDevolucion_cuandoPrestamoExiste_retornaRespuestaCorrecta() {
+    void testRegistrarPrestamoCodigoDuplicado() {
+
+        // Arrange
+        PrestamoResponse prestamoResponse =
+                PrestamoResponse.builder()
+                        .codigoPrestamo("PRE001")
+                        .codigoEjemplar("LIB001")
+                        .codigoSocio("SOC001")
+                        .estado("RECHAZADA")
+                        .motivoRechazo("Código de préstamo ya registrado")
+                        .build();
+
+        ComprobantePrestamoResponse comprobante =
+                ComprobantePrestamoResponse.builder()
+                        .codigoPrestamo("PRE001")
+                        .estado("RECHAZADA")
+                        .mensaje("Código de préstamo ya registrado")
+                        .build();
+
+        when(repository.existsByCodigoPrestamo(anyString()))
+                .thenReturn(true);
+
+        when(mapper.toResponse(any(Prestamo.class)))
+                .thenReturn(prestamoResponse);
+
+        when(comprobanteBuilder.build(any(PrestamoResponse.class)))
+                .thenReturn(comprobante);
+
+
+        // Act
+        ComprobantePrestamoResponse resultado =
+                prestamoServiceImpl.registrarPrestamo(request);
+
+
+        // Assert
+        assertNotNull(resultado);
+        assertEquals("RECHAZADA", resultado.getEstado());
+        assertEquals("Código de préstamo ya registrado",
+                resultado.getMensaje());
+
+        verify(repository, never())
+                .save(any(Prestamo.class));
+
+        verify(librosClient, never())
+                .actualizarDisponibilidad(anyString(), anyBoolean());
+
+        verify(notificacionesClient, never())
+                .enviar(any(NotificacionRequest.class));
+    }
+    
+    @Test
+    void testRegistrarPrestamoHappyPath(){
 
 
         // Arrange
-        RegistrarDevolucionRequest request =
-                new RegistrarDevolucionRequest();
+        SocioResponse socio = SocioResponse.builder()
+                .codigoSocio("SOC001")
+                .email("juan@gmail.com")
+                .activo(true)
+                .build();
 
+        EjemplarResponse ejemplar = EjemplarResponse.builder()
+                .codigoEjemplar("LIB001")
+                .disponible(true)
+                .build();
+
+        ApiResponse<SocioResponse> socioResponse =
+                ApiResponse.<SocioResponse>builder()
+                        .data(socio)
+                        .build();
+
+        ApiResponse<EjemplarResponse> ejemplarResponse =
+                ApiResponse.<EjemplarResponse>builder()
+                        .data(ejemplar)
+                        .build();
+
+        PrestamoResponse prestamoResponse =
+                PrestamoResponse.builder()
+                        .codigoPrestamo("PRE001")
+                        .codigoEjemplar("LIB001")
+                        .codigoSocio("SOC001")
+                        .estado("REGISTRADA")
+                        .build();
+
+        ComprobantePrestamoResponse comprobante =
+                ComprobantePrestamoResponse.builder()
+                        .codigoPrestamo("PRE001")
+                        .estado("REGISTRADA")
+                        .mensaje("Préstamo registrado correctamente.")
+                        .build();
+
+        when(repository.existsByCodigoPrestamo(anyString()))
+                .thenReturn(false);
+
+        when(librosClient.obtenerSocio(anyString()))
+                .thenReturn(socioResponse);
+
+        when(librosClient.obtenerEjemplar(anyString()))
+                .thenReturn(ejemplarResponse);
+
+        when(prestamoFactory.obtenerProcesador(anyString()))
+                .thenReturn(processor);
+
+        when(processor.procesar(any(Prestamo.class)))
+                .thenReturn(prestamo);
+
+        when(repository.save(any(Prestamo.class)))
+                .thenReturn(prestamo);
+
+        when(mapper.toResponse(any(Prestamo.class)))
+                .thenReturn(prestamoResponse);
+
+        when(comprobanteBuilder.build(any(PrestamoResponse.class)))
+                .thenReturn(comprobante);
+
+
+        // Act
+        ComprobantePrestamoResponse resultado =
+                prestamoServiceImpl.registrarPrestamo(request);
+
+
+        // Assert
+        assertNotNull(resultado);
+        assertEquals("PRE001", resultado.getCodigoPrestamo());
+        assertEquals("REGISTRADA", resultado.getEstado());
+
+        verify(repository).save(any(Prestamo.class));
+
+        verify(librosClient)
+                .actualizarDisponibilidad("LIB001", false);
+
+        verify(notificacionesClient)
+                .enviar(any(NotificacionRequest.class));
+
+    }
+
+    @Test
+    void testRegistrarPrestamoSocioNoExiste() {
+
+
+        // Arrange
+        ApiResponse<SocioResponse> socioResponse =
+                ApiResponse.<SocioResponse>builder()
+                        .data(null)
+                        .build();
+
+        PrestamoResponse prestamoResponse =
+                PrestamoResponse.builder()
+                        .codigoPrestamo("PRE001")
+                        .codigoEjemplar("LIB001")
+                        .codigoSocio("SOC001")
+                        .estado("RECHAZADA")
+                        .motivoRechazo("Socio no encontrado")
+                        .build();
+
+        ComprobantePrestamoResponse comprobante =
+                ComprobantePrestamoResponse.builder()
+                        .codigoPrestamo("PRE001")
+                        .estado("RECHAZADA")
+                        .mensaje("Socio no encontrado")
+                        .build();
+
+        when(repository.existsByCodigoPrestamo(anyString()))
+                .thenReturn(false);
+
+        when(librosClient.obtenerSocio(anyString()))
+                .thenReturn(socioResponse);
+
+        when(mapper.toResponse(any(Prestamo.class)))
+                .thenReturn(prestamoResponse);
+
+        when(comprobanteBuilder.build(any(PrestamoResponse.class)))
+                .thenReturn(comprobante);
+
+
+        // Act
+        ComprobantePrestamoResponse resultado =
+                prestamoServiceImpl.registrarPrestamo(request);
+
+
+        // Assert
+        assertNotNull(resultado);
+        assertEquals("RECHAZADA", resultado.getEstado());
+        assertEquals("Socio no encontrado", resultado.getMensaje());
+
+        verify(repository, never())
+                .save(any(Prestamo.class));
+
+        verify(librosClient, never())
+                .actualizarDisponibilidad(anyString(), anyBoolean());
+
+        verify(notificacionesClient, never())
+                .enviar(any(NotificacionRequest.class));
+    }
+
+    @Test
+    void testRegistrarPrestamoSocioInactivo() {
+
+
+        // Arrange
+        SocioResponse socio = SocioResponse.builder()
+                .codigoSocio("SOC001")
+                .email("juan@gmail.com")
+                .activo(false)
+                .build();
+
+        ApiResponse<SocioResponse> socioResponse =
+                ApiResponse.<SocioResponse>builder()
+                        .data(socio)
+                        .build();
+
+        PrestamoResponse prestamoResponse =
+                PrestamoResponse.builder()
+                        .codigoPrestamo("PRE001")
+                        .codigoEjemplar("LIB001")
+                        .codigoSocio("SOC001")
+                        .estado("RECHAZADA")
+                        .motivoRechazo("Socio inactivo")
+                        .build();
+
+        ComprobantePrestamoResponse comprobante =
+                ComprobantePrestamoResponse.builder()
+                        .codigoPrestamo("PRE001")
+                        .estado("RECHAZADA")
+                        .mensaje("Socio inactivo")
+                        .build();
+
+        when(repository.existsByCodigoPrestamo(anyString()))
+                .thenReturn(false);
+
+        when(librosClient.obtenerSocio(anyString()))
+                .thenReturn(socioResponse);
+
+        when(mapper.toResponse(any(Prestamo.class)))
+                .thenReturn(prestamoResponse);
+
+        when(comprobanteBuilder.build(any(PrestamoResponse.class)))
+                .thenReturn(comprobante);
+
+
+        // Act
+        ComprobantePrestamoResponse resultado =
+                prestamoServiceImpl.registrarPrestamo(request);
+
+        // Assert
+        assertNotNull(resultado);
+        assertEquals("RECHAZADA", resultado.getEstado());
+        assertEquals("Socio inactivo", resultado.getMensaje());
+
+        verify(repository, never())
+                .save(any(Prestamo.class));
+
+        verify(librosClient, never())
+                .obtenerEjemplar(anyString());
+
+        verify(librosClient, never())
+                .actualizarDisponibilidad(anyString(), anyBoolean());
+
+        verify(notificacionesClient, never())
+                .enviar(any(NotificacionRequest.class));
+    }
+
+    @Test
+    void testRegistrarPrestamoEjemplarNoDisponible() {
+
+
+        // Arrange
+        SocioResponse socio = SocioResponse.builder()
+                .codigoSocio("SOC001")
+                .email("juan@gmail.com")
+                .activo(true)
+                .build();
+
+        EjemplarResponse ejemplar = EjemplarResponse.builder()
+                .codigoEjemplar("LIB001")
+                .disponible(false)
+                .build();
+
+        ApiResponse<SocioResponse> socioResponse =
+                ApiResponse.<SocioResponse>builder()
+                        .data(socio)
+                        .build();
+
+        ApiResponse<EjemplarResponse> ejemplarResponse =
+                ApiResponse.<EjemplarResponse>builder()
+                        .data(ejemplar)
+                        .build();
+
+        PrestamoResponse prestamoResponse =
+                PrestamoResponse.builder()
+                        .codigoPrestamo("PRE001")
+                        .codigoEjemplar("LIB001")
+                        .codigoSocio("SOC001")
+                        .estado("RECHAZADA")
+                        .motivoRechazo("Ejemplar no disponible")
+                        .build();
+
+        ComprobantePrestamoResponse comprobante =
+                ComprobantePrestamoResponse.builder()
+                        .codigoPrestamo("PRE001")
+                        .estado("RECHAZADA")
+                        .mensaje("Ejemplar no disponible")
+                        .build();
+
+        when(repository.existsByCodigoPrestamo(anyString()))
+                .thenReturn(false);
+
+        when(librosClient.obtenerSocio(anyString()))
+                .thenReturn(socioResponse);
+
+        when(librosClient.obtenerEjemplar(anyString()))
+                .thenReturn(ejemplarResponse);
+
+        when(mapper.toResponse(any(Prestamo.class)))
+                .thenReturn(prestamoResponse);
+
+        when(comprobanteBuilder.build(any(PrestamoResponse.class)))
+                .thenReturn(comprobante);
+
+
+        // Act
+        ComprobantePrestamoResponse resultado =
+                prestamoServiceImpl.registrarPrestamo(request);
+
+
+        // Assert
+        assertNotNull(resultado);
+        assertEquals("RECHAZADA", resultado.getEstado());
+        assertEquals("Ejemplar no disponible", resultado.getMensaje());
+
+        verify(repository, never())
+                .save(any(Prestamo.class));
+
+        verify(prestamoFactory, never())
+                .obtenerProcesador(anyString());
+
+        verify(librosClient, never())
+                .actualizarDisponibilidad(anyString(), anyBoolean());
+
+        verify(notificacionesClient, never())
+                .enviar(any(NotificacionRequest.class));
+    }
+
+    @Test
+    void testRegistrarPrestamoNotFoundException() {
+
+
+        // Arrange
+        PrestamoResponse prestamoResponse =
+                PrestamoResponse.builder()
+                        .codigoPrestamo("PRE001")
+                        .codigoEjemplar("LIB001")
+                        .codigoSocio("SOC001")
+                        .estado("RECHAZADA")
+                        .motivoRechazo("Socio o ejemplar no encontrado")
+                        .build();
+
+        ComprobantePrestamoResponse comprobante =
+                ComprobantePrestamoResponse.builder()
+                        .codigoPrestamo("PRE001")
+                        .estado("RECHAZADA")
+                        .mensaje("Socio o ejemplar no encontrado")
+                        .build();
+
+        when(repository.existsByCodigoPrestamo(anyString()))
+                .thenReturn(false);
+
+        when(librosClient.obtenerSocio(anyString()))
+                .thenThrow(HttpClientErrorException.NotFound.class);
+
+        when(mapper.toResponse(any(Prestamo.class)))
+                .thenReturn(prestamoResponse);
+
+        when(comprobanteBuilder.build(any(PrestamoResponse.class)))
+                .thenReturn(comprobante);
+
+
+        // Act
+        ComprobantePrestamoResponse resultado =
+                prestamoServiceImpl.registrarPrestamo(request);
+
+
+        // Assert
+        assertNotNull(resultado);
+        assertEquals("RECHAZADA", resultado.getEstado());
+        assertEquals("Socio o ejemplar no encontrado",
+                resultado.getMensaje());
+
+        verify(repository, never())
+                .save(any(Prestamo.class));
+
+        verify(librosClient, never())
+                .actualizarDisponibilidad(anyString(), anyBoolean());
+
+        verify(notificacionesClient, never())
+                .enviar(any(NotificacionRequest.class));
+
+        verify(prestamoFactory, never())
+                .obtenerProcesador(anyString());
+    }
+
+    @Test
+    void testRegistrarPrestamoExceptionGeneral() {
+
+
+        // Arrange
+        PrestamoResponse prestamoResponse =
+                PrestamoResponse.builder()
+                        .codigoPrestamo("PRE001")
+                        .codigoEjemplar("LIB001")
+                        .codigoSocio("SOC001")
+                        .estado("RECHAZADA")
+                        .motivoRechazo("Error de comunicación con servicios externos")
+                        .build();
+
+        ComprobantePrestamoResponse comprobante =
+                ComprobantePrestamoResponse.builder()
+                        .codigoPrestamo("PRE001")
+                        .estado("RECHAZADA")
+                        .mensaje("Error de comunicación con servicios externos")
+                        .build();
+
+        when(repository.existsByCodigoPrestamo(anyString()))
+                .thenReturn(false);
+
+        when(librosClient.obtenerSocio(anyString()))
+                .thenThrow(new RuntimeException("Error de conexión"));
+
+        when(mapper.toResponse(any(Prestamo.class)))
+                .thenReturn(prestamoResponse);
+
+        when(comprobanteBuilder.build(any(PrestamoResponse.class)))
+                .thenReturn(comprobante);
+
+
+        // Act
+        ComprobantePrestamoResponse resultado =
+                prestamoServiceImpl.registrarPrestamo(request);
+
+
+        // Assert
+        assertNotNull(resultado);
+        assertEquals("RECHAZADA", resultado.getEstado());
+        assertEquals("Error de comunicación con servicios externos",
+                resultado.getMensaje());
+
+        verify(repository, never())
+                .save(any(Prestamo.class));
+
+        verify(prestamoFactory, never())
+                .obtenerProcesador(anyString());
+
+        verify(librosClient, never())
+                .actualizarDisponibilidad(anyString(), anyBoolean());
+
+        verify(notificacionesClient, never())
+                .enviar(any(NotificacionRequest.class));
+
+    }
+
+    @Test
+    void testRegistrarDevolucionHappyPath() {
+
+
+        // Arrange
+        RegistrarDevolucionRequest request = new RegistrarDevolucionRequest();
         request.setCodigoPrestamo("PRE001");
 
-
-        Prestamo prestamo = new Prestamo();
-        prestamo.setCodigoPrestamo("PRE001");
+        prestamo.setEstado("REGISTRADA");
         prestamo.setCodigoEjemplar("LIB001");
-        prestamo.setEstado("PRESTADO");
 
+        PrestamoResponse response = PrestamoResponse.builder()
+                .codigoPrestamo("PRE001")
+                .codigoEjemplar("LIB001")
+                .estado("DEVUELTO")
+                .build();
 
-        PrestamoResponse response =
-                new PrestamoResponse();
-
-        response.setCodigoPrestamo("PRE001");
-
-
-        when(repository.findByCodigoPrestamo("PRE001"))
+        when(repository.findByCodigoPrestamo(anyString()))
                 .thenReturn(Optional.of(prestamo));
-
 
         when(prestamoFactory.obtenerProcesador("DEVOLUCION"))
                 .thenReturn(processor);
 
+        when(processor.procesar(any(Prestamo.class)))
+                .thenReturn(prestamo);
 
-        when(mapper.toResponse(prestamo))
+        when(repository.save(any(Prestamo.class)))
+                .thenReturn(prestamo);
+
+        when(mapper.toResponse(any(Prestamo.class)))
                 .thenReturn(response);
-
 
 
         // Act
         PrestamoResponse resultado =
-                service.registrarDevolucion(request);
-
+                prestamoServiceImpl.registrarDevolucion(request);
 
 
         // Assert
-
         assertNotNull(resultado);
-        assertEquals("PRE001",
-                resultado.getCodigoPrestamo());
+        assertEquals("DEVUELTO", resultado.getEstado());
 
-
-        verify(processor)
-                .procesar(prestamo);
-
-
-        verify(repository)
-                .save(prestamo);
-
+        verify(repository).save(any(Prestamo.class));
 
         verify(librosClient)
-                .actualizarDisponibilidad(
-                        "LIB001",
-                        true
-                );
+                .actualizarDisponibilidad("LIB001", true);
 
+        verify(processor)
+                .procesar(any(Prestamo.class));
 
-        assertNotNull(prestamo.getFechaDevolucionReal());
     }
 
-
-
     @Test
-    void registrarDevolucion_cuandoPrestamoNoExiste_lanzaExcepcion() {
+    void testRegistrarDevolucionPrestamoNoExiste() {
 
 
         // Arrange
-        RegistrarDevolucionRequest request =
-                new RegistrarDevolucionRequest();
-
+        RegistrarDevolucionRequest request = new RegistrarDevolucionRequest();
         request.setCodigoPrestamo("PRE999");
 
-
-        when(repository.findByCodigoPrestamo("PRE999"))
+        when(repository.findByCodigoPrestamo(anyString()))
                 .thenReturn(Optional.empty());
 
 
+        // Act & Assert
+        RuntimeException exception = assertThrows(RuntimeException.class,
+                () -> prestamoServiceImpl.registrarDevolucion(request));
 
-        // Act + Assert
-
-        RuntimeException exception =
-                assertThrows(
-                        RuntimeException.class,
-                        () -> service.registrarDevolucion(request)
-                );
-
-
-        assertEquals(
-                "Préstamo no encontrado.",
-                exception.getMessage()
-        );
-
+        assertEquals("Préstamo no encontrado.",
+                exception.getMessage());
 
         verify(repository, never())
                 .save(any());
 
-        verifyNoInteractions(librosClient);
+        verify(librosClient, never())
+                .actualizarDisponibilidad(anyString(), anyBoolean());
+
     }
 
 
-
     @Test
-    void registrarDevolucion_cuandoPrestamoYaDevuelto_lanzaExcepcion() {
+    void testRegistrarDevolucionPrestamoYaDevuelto() {
 
 
         // Arrange
-
-        RegistrarDevolucionRequest request =
-                new RegistrarDevolucionRequest();
-
+        RegistrarDevolucionRequest request = new RegistrarDevolucionRequest();
         request.setCodigoPrestamo("PRE001");
 
-
-        Prestamo prestamo = new Prestamo();
-
-        prestamo.setCodigoPrestamo("PRE001");
         prestamo.setEstado("DEVUELTO");
 
-
-        when(repository.findByCodigoPrestamo("PRE001"))
+        when(repository.findByCodigoPrestamo(anyString()))
                 .thenReturn(Optional.of(prestamo));
 
 
+        // Act & Assert
+        RuntimeException exception = assertThrows(RuntimeException.class,
+                () -> prestamoServiceImpl.registrarDevolucion(request));
 
-        // Act + Assert
+        assertEquals("El préstamo ya fue devuelto.",
+                exception.getMessage());
 
-        RuntimeException exception =
-                assertThrows(
-                        RuntimeException.class,
-                        () -> service.registrarDevolucion(request)
-                );
-
-
-
-        assertEquals(
-                "El préstamo ya fue devuelto.",
-                exception.getMessage()
-        );
-
-
-        verifyNoInteractions(prestamoFactory);
         verify(repository, never())
                 .save(any());
 
+        verify(librosClient, never())
+                .actualizarDisponibilidad(anyString(), anyBoolean());
+
+        verify(prestamoFactory, never())
+                .obtenerProcesador(anyString());
+
     }
 
-
-
     @Test
-    void registrarDevolucion_debeSolicitarProcesadorDevolucion() {
+    void testListar() {
 
 
         // Arrange
+        List<Prestamo> lista = List.of(prestamo);
 
-        RegistrarDevolucionRequest request =
-                new RegistrarDevolucionRequest();
+        PrestamoResponse response = PrestamoResponse.builder()
+                .codigoPrestamo("PRE001")
+                .build();
 
-        request.setCodigoPrestamo("PRE001");
+        when(repository.findAll())
+                .thenReturn(lista);
 
-
-        Prestamo prestamo = new Prestamo();
-
-        prestamo.setCodigoPrestamo("PRE001");
-        prestamo.setCodigoEjemplar("LIB001");
-        prestamo.setEstado("PRESTADO");
-
-
-        when(repository.findByCodigoPrestamo("PRE001"))
-                .thenReturn(Optional.of(prestamo));
-
-
-        when(prestamoFactory.obtenerProcesador("DEVOLUCION"))
-                .thenReturn(processor);
-
-
-        when(mapper.toResponse(prestamo))
-                .thenReturn(new PrestamoResponse());
-
+        when(mapper.toResponse(any(Prestamo.class)))
+                .thenReturn(response);
 
 
         // Act
-
-        service.registrarDevolucion(request);
-
+        List<PrestamoResponse> resultado =
+                prestamoServiceImpl.listar();
 
 
         // Assert
+       assertNotNull(resultado);
+        assertEquals(1, resultado.size());
 
-        verify(prestamoFactory)
-                .obtenerProcesador("DEVOLUCION");
+        verify(repository).findAll();
 
-
-        verify(processor)
-                .procesar(prestamo);
     }
 
+    @Test
+    void testBuscar() {
+
+
+        // Arrange
+        PrestamoResponse response = PrestamoResponse.builder()
+                .codigoPrestamo("PRE001")
+                .build();
+
+        when(repository.findByCodigoPrestamo(anyString()))
+                .thenReturn(Optional.of(prestamo));
+
+        when(mapper.toResponse(any(Prestamo.class)))
+                .thenReturn(response);
+
+
+        // Act
+        PrestamoResponse resultado =
+                prestamoServiceImpl.buscar("PRE001");
+
+
+        // Assert
+        assertNotNull(resultado);
+        assertEquals("PRE001", resultado.getCodigoPrestamo());
+
+        verify(repository).findByCodigoPrestamo("PRE001");
+
+    }
+  
 }
