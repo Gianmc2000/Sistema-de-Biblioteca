@@ -64,6 +64,7 @@ public class PrestamoServiceImpl implements PrestamoService {
                 } else {
                     prestamo.setMotivoRechazo("Socio inactivo");
                 }
+                repository.save(prestamo);
                 return comprobanteBuilder.build(mapper.toResponse(prestamo));
             }
 
@@ -73,7 +74,7 @@ public class PrestamoServiceImpl implements PrestamoService {
             if (ejemplar == null || ejemplar.getDisponible() == null || !ejemplar.getDisponible()) {
                 prestamo.setEstado("RECHAZADA");
                 prestamo.setMotivoRechazo("Ejemplar no disponible");
-                //repository.save(prestamo);
+                repository.save(prestamo);
                 return comprobanteBuilder.build(mapper.toResponse(prestamo));
             }
 
@@ -97,13 +98,13 @@ public class PrestamoServiceImpl implements PrestamoService {
         } catch (HttpClientErrorException.NotFound ex) {
             prestamo.setEstado("RECHAZADA");
             prestamo.setMotivoRechazo("Socio o ejemplar no encontrado");
-            //repository.save(prestamo);
+            repository.save(prestamo);
             return comprobanteBuilder.build(mapper.toResponse(prestamo));
 
         } catch (Exception ex) {
             prestamo.setEstado("RECHAZADA");
             prestamo.setMotivoRechazo("Error de comunicación con servicios externos");
-            //repository.save(prestamo);
+            repository.save(prestamo);
             return comprobanteBuilder.build(mapper.toResponse(prestamo));
         }
     }

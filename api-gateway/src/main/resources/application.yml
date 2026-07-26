@@ -9,32 +9,40 @@ spring:
     name: api-gateway
 
   config:
-    import: optional:configserver:http://localhost:8888
+    import: "optional:configserver:http://localhost:8888"
 
   cloud:
     gateway:
-      server:
-        webflux:
-          routes:
-            - id: auth
-              uri: lb://auth-service
-              predicates:
-                - Path=/api/v1/auth/**
+      routes:
+        - id: auth
+          uri: lb://auth-service
+          predicates:
+            - Path=/api/v1/auth/**
 
-            - id: libros
-              uri: lb://libros-service
-              predicates:
-                - Path=/api/v1/libros**,/api/v1/socios**
-            - id: prestamos
-              uri: lb://prestamos-service
-              predicates:
-                - Path=/api/v1/prestamos**
-            - id: notificaciones
-              uri: lb://notificaciones-service
-              predicates:
-                - Path=/api/v1/notificaciones/**
+        - id: libros
+          uri: lb://libros-service
+          predicates:
+            - Path=/api/v1/libros/**
 
+        - id: prestamos
+          uri: lb://prestamos-service
+          predicates:
+            - Path=/api/v1/prestamos/**
+
+        - id: notificaciones
+          uri: lb://notificaciones-service
+          predicates:
+            - Path=/api/v1/notificaciones/**
+
+# Configuración obligatoria para resolución con Eureka
+eureka:
+  instance:
+    prefer-ip-address: true # Usa IPs en lugar de hostnames de red
+  client:
+    register-with-eureka: true
+    fetch-registry: true
+    service-url:
+      defaultZone: http://localhost:8761/eureka/
 
 jwt:
   secret: DzbdiUOkvzu1NAVG3MwSQPS9LkYLUfjWJCybgOv50sxQcwrNaFepVVQD06PcndJ8
-
