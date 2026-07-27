@@ -17,5 +17,5 @@ jobs:
       - name: Analyze with SonarQube
         uses: SonarSource/sonarqube-scan-action@v2.0.1
         env:
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-          SONAR_HOST_URL: ${{ vars.SONAR_HOST_URL }}
+          SONAR_TOKEN: sqa_65783b7a6a7ce021dc6159d7ddcd30136200d899
+          SONAR_HOST_URL: http://localhost:9000/Z
