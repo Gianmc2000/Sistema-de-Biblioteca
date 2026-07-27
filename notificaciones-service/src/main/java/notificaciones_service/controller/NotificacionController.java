@@ -11,8 +11,6 @@ import notificaciones_service.dto.response.ApiResponse;
 import notificaciones_service.dto.response.NotificacionResponse;
 import notificaciones_service.service.NotificacionService;
 
-import java.util.List;
-
 @RestController
 @RequestMapping("/api/v1/notificaciones")
 @RequiredArgsConstructor
